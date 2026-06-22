@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-main.py — Verificador E-14 Presidenciales 2026
+main.py — Verificador E-14 Presidenciales 2026 (Unificado 1ra y 2da Vuelta)
 Servidor FastAPI + Uvicorn, listo para Railway
 """
 
@@ -11,8 +11,6 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-DB_PATH = os.environ.get("DB_PATH", "e14_index.db")
-
 app = FastAPI(title="Verificador E-14", docs_url=None, redoc_url=None)
 
 app.add_middleware(
@@ -21,6 +19,18 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# --- CONFIGURACIÓN DE VUELTAS ---
+VUELTAS = {
+    1: {
+        "db": os.environ.get("DB_PATH_V1", "e14_index.db"),
+        "url": "https://divulgacione14presidente.registraduria.gov.co"
+    },
+    2: {
+        "db": os.environ.get("DB_PATH_V2", "e14_index_2Vuelta.db"),
+        "url": "https://e14segundavueltapresidente.registraduria.gov.co"
+    }
+}
 
 DEPARTAMENTOS = {
     "01": "Antioquia",       "03": "Atlántico",
@@ -46,10 +56,16 @@ COLS = ["idTransmissionCode","numberStand","expectedName","status",
         "status_label","idCorporationCode","idStand","standCode",
         "idZoneCode","idDepartmentCode","municipalityCode","departamento","url_pdf"]
 
-# Conexión con pool de lectura (check_same_thread=False es seguro en modo read-only)
-def get_conn():
-    con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True,
-                          check_same_thread=False)
+# Conexión dinámica dependiendo de la vuelta
+def get_conn(vuelta: int):
+    if vuelta not in VUELTAS:
+        raise HTTPException(400, "Vuelta no válida.")
+    
+    db_path = VUELTAS[vuelta]["db"]
+    if not Path(db_path).exists():
+        raise HTTPException(500, f"No se encontró la base de datos de la vuelta {vuelta} ({db_path}).")
+        
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
     con.row_factory = sqlite3.Row
     return con
 
@@ -57,8 +73,8 @@ def formatear_codigo(codigo: str) -> str:
     c = str(codigo).zfill(7)
     return f"{c[0]}-{c[1:3]}-{c[3:5]}-{c[5:7]}"
 
-def construir_url_pdf(r: dict) -> str:
-    base = "https://divulgacione14presidente.registraduria.gov.co/assets/temis/pdf"
+def construir_url_pdf(r: dict, vuelta: int) -> str:
+    base = f"{VUELTAS[vuelta]['url']}/assets/temis/pdf"
     depto  = r["idDepartmentCode"].zfill(2)
     mpio   = r["municipalityCode"].zfill(3)
     zona   = r["idZoneCode"].zfill(3)
@@ -66,31 +82,38 @@ def construir_url_pdf(r: dict) -> str:
     mesa   = r["numberStand"].zfill(3)
     return f"{base}/{depto}/{mpio}/{zona}/{puesto}/{mesa}/PRE/{r['expectedName']}"
 
-def enriquecer(row) -> dict:
+def enriquecer(row, vuelta: int) -> dict:
     r = dict(row)
     r["depto_nombre"]      = DEPARTAMENTOS.get(r["idDepartmentCode"], f"Código {r['idDepartmentCode']}")
     r["codigo_formateado"] = formatear_codigo(r["idTransmissionCode"])
-    r["url_pdf_directa"]   = construir_url_pdf(r)
+    r["url_pdf_directa"]   = construir_url_pdf(r, vuelta)
+    r["url_visor_oficial"] = VUELTAS[vuelta]['url']
     return r
 
 # ── Rutas API ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/buscar")
-def buscar_codigo(codigo: str = Query(..., description="Código de transmisión")):
+def buscar_codigo(
+    codigo: str = Query(..., description="Código de transmisión"),
+    vuelta: int = Query(2, description="Vuelta electoral (1 o 2)")
+):
     codigo_norm = codigo.replace("-", "").replace(" ", "").strip()
     if not codigo_norm:
         raise HTTPException(400, "Código vacío")
     try:
-        con = get_conn()
+        con = get_conn(vuelta)
         row = con.execute(
             "SELECT * FROM mesas WHERE idTransmissionCode = ?", (codigo_norm,)
         ).fetchone()
         con.close()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"Error de base de datos: {e}")
+        
     if not row:
-        return JSONResponse({"error": f"El código '{codigo}' no se encontró en ninguna mesa de Colombia."})
-    return enriquecer(row)
+        return JSONResponse({"error": f"El código '{codigo}' no se encontró en la vuelta {vuelta}."})
+    return enriquecer(row, vuelta)
 
 @app.get("/api/lugar")
 def buscar_lugar(
@@ -99,9 +122,10 @@ def buscar_lugar(
     zona:   str = Query(...),
     puesto: str = Query(...),
     mesa:   str = Query(...),
+    vuelta: int = Query(2, description="Vuelta electoral (1 o 2)")
 ):
     try:
-        con = get_conn()
+        con = get_conn(vuelta)
         rows = con.execute("""
             SELECT * FROM mesas
             WHERE idDepartmentCode=? AND municipalityCode=?
@@ -109,21 +133,14 @@ def buscar_lugar(
         """, (depto.zfill(2), mpio.zfill(3), zona.zfill(2),
               puesto.zfill(2), mesa.zfill(3))).fetchall()
         con.close()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"Error de base de datos: {e}")
+        
     if not rows:
-        return JSONResponse({"error": "No se encontró ninguna mesa con esos datos."})
-    return [enriquecer(r) for r in rows]
-
-@app.get("/api/stats")
-def stats():
-    con = get_conn()
-    total = con.execute("SELECT COUNT(*) FROM mesas").fetchone()[0]
-    por_status = con.execute(
-        "SELECT status, COUNT(*) as n FROM mesas GROUP BY status ORDER BY n DESC"
-    ).fetchall()
-    con.close()
-    return {"total_mesas": total, "por_status": [dict(r) for r in por_status]}
+        return JSONResponse({"error": f"No se encontró ninguna mesa con esos datos en la vuelta {vuelta}."})
+    return [enriquecer(r, vuelta) for r in rows]
 
 # ── Frontend ──────────────────────────────────────────────────────────────────
 
@@ -151,6 +168,16 @@ HTML = """<!DOCTYPE html>
   .card{background:var(--surface);border:1px solid var(--border);
         border-radius:var(--radius);box-shadow:var(--shadow);
         padding:1.75rem;width:100%;max-width:580px;margin-bottom:1.5rem}
+  
+  /* Estilos para el selector de vuelta */
+  .vuelta-selector {
+    display: flex; gap: 1rem; justify-content: center; margin-bottom: 1.5rem; 
+    background: #e8f4f4; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);
+  }
+  .vuelta-selector label {
+    cursor: pointer; font-weight: 600; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.3rem;
+  }
+  
   .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
   .tab{flex:1;padding:.6rem 1rem;border:2px solid var(--border);
        border-radius:8px;background:var(--bg);color:var(--muted);
@@ -160,11 +187,11 @@ HTML = """<!DOCTYPE html>
   .panel{display:none}.panel.active{display:block}
   label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);
         text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
-  input{width:100%;padding:.75rem 1rem;border:2px solid var(--border);
+  input[type="text"]{width:100%;padding:.75rem 1rem;border:2px solid var(--border);
         border-radius:8px;font-size:1rem;color:var(--text);
         background:var(--bg);transition:border-color .15s;outline:none}
-  input:focus{border-color:var(--primary);background:#fff}
-  input::placeholder{color:var(--faint)}
+  input[type="text"]:focus{border-color:var(--primary);background:#fff}
+  input[type="text"]::placeholder{color:var(--faint)}
   .hint{font-size:.78rem;color:var(--faint);margin-top:.35rem}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1rem}
@@ -219,14 +246,25 @@ HTML = """<!DOCTYPE html>
 <header>
   <div class="logo">🗳️</div>
   <h1>Verificador de Actas E-14</h1>
-  <p>Elección Presidencia y Vicepresidencia — Mayo 31 de 2026</p>
+  <p>Elección Presidencia y Vicepresidencia — Colombia 2026</p>
 </header>
 
 <div class="card">
+  <!-- Selector Unificado de Vueltas -->
+  <div class="vuelta-selector">
+    <label>
+      <input type="radio" name="vuelta" value="1" onchange="limpiarResultado()"> Primera Vuelta
+    </label>
+    <label>
+      <input type="radio" name="vuelta" value="2" checked onchange="limpiarResultado()"> Segunda Vuelta
+    </label>
+  </div>
+
   <div class="tabs">
     <button class="tab active" onclick="switchTab('codigo')">🔢 Por código del PDF</button>
     <button class="tab"        onclick="switchTab('lugar')">📍 Por ubicación</button>
   </div>
+
   <div id="panel-codigo" class="panel active">
     <form onsubmit="buscarCodigo(event)">
       <label>Código de transmisión</label>
@@ -235,10 +273,11 @@ HTML = """<!DOCTYPE html>
       <p class="hint">Es el número impreso en el formulario como X 5-57-43-15 X</p>
       <button type="submit" class="btn-buscar">
         <div class="spinner"></div>
-        <span class="btn-text">🔍 Buscar</span>
+        <span class="btn-text">🔍 Buscar Acta</span>
       </button>
     </form>
   </div>
+
   <div id="panel-lugar" class="panel">
     <form onsubmit="buscarLugar(event)">
       <div class="grid2">
@@ -258,7 +297,7 @@ HTML = """<!DOCTYPE html>
       <p class="hint" style="margin-top:.75rem">Datos tal como aparecen en el encabezado del E-14</p>
       <button type="submit" class="btn-buscar">
         <div class="spinner"></div>
-        <span class="btn-text">🔍 Buscar</span>
+        <span class="btn-text">🔍 Buscar Acta</span>
       </button>
     </form>
   </div>
@@ -269,9 +308,15 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <footer>
-  122,002 mesas indexadas · Fuente: Registraduría Nacional del Estado Civil<br>
-  Herramienta de verificación ciudadana. Datos oficiales en
-  <a href="https://divulgacione14presidente.registraduria.gov.co" target="_blank">registraduria.gov.co</a>
+  <div style="background: #e8f4f4; padding: 0.85rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border); color: var(--primary); text-align: center; line-height: 1.4;">
+    <strong>📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
+    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text);">
+      Primera Vuelta: <b>122.016</b> actas procesadas<br>
+      Segunda Vuelta: <b>121.630</b> actas procesadas
+    </div>
+  </div>
+  Fuente: Registraduría Nacional del Estado Civil.<br>
+  Herramienta de verificación ciudadana independiente.
 </footer>
 
 <script>
@@ -281,67 +326,90 @@ function switchTab(tab) {
   });
   document.getElementById('panel-codigo').classList.toggle('active', tab==='codigo');
   document.getElementById('panel-lugar').classList.toggle('active',  tab==='lugar');
+  limpiarResultado();
+}
+
+function limpiarResultado() {
   document.getElementById('resultado').style.display = 'none';
 }
+
 function setLoading(btn, on) {
   btn.classList.toggle('loading', on);
   btn.disabled = on;
 }
+
+// Helper para obtener qué vuelta seleccionó el usuario
+function getVueltaSeleccionada() {
+  return document.querySelector('input[name="vuelta"]:checked').value;
+}
+
 async function buscarCodigo(e) {
   e.preventDefault();
   const btn = e.target.querySelector('button');
   const codigo = document.getElementById('inp-codigo').value.trim();
+  const vuelta = getVueltaSeleccionada();
+  
   if (!codigo) return;
   setLoading(btn, true);
   try {
-    const r = await fetch('/api/buscar?codigo=' + encodeURIComponent(codigo));
-    mostrarResultado(await r.json());
+    const r = await fetch(`/api/buscar?codigo=${encodeURIComponent(codigo)}&vuelta=${vuelta}`);
+    mostrarResultado(await r.json(), vuelta);
   } finally { setLoading(btn, false); }
 }
+
 async function buscarLugar(e) {
   e.preventDefault();
   const btn = e.target.querySelector('button');
+  const vuelta = getVueltaSeleccionada();
+  
   const p = new URLSearchParams({
-    depto: document.getElementById('l-dep').value.trim(),
-    mpio:  document.getElementById('l-mpio').value.trim(),
-    zona:  document.getElementById('l-zona').value.trim(),
-    puesto:document.getElementById('l-puesto').value.trim(),
-    mesa:  document.getElementById('l-mesa').value.trim(),
+    depto:  document.getElementById('l-dep').value.trim(),
+    mpio:   document.getElementById('l-mpio').value.trim(),
+    zona:   document.getElementById('l-zona').value.trim(),
+    puesto: document.getElementById('l-puesto').value.trim(),
+    mesa:   document.getElementById('l-mesa').value.trim(),
+    vuelta: vuelta
   });
+  
   setLoading(btn, true);
   try {
     const r = await fetch('/api/lugar?' + p);
     const data = await r.json();
-    mostrarResultado(Array.isArray(data) ? data[0] : data);
+    mostrarResultado(Array.isArray(data) ? data[0] : data, vuelta);
   } finally { setLoading(btn, false); }
 }
-function mostrarResultado(data) {
+
+function mostrarResultado(data, vuelta) {
   const box   = document.getElementById('resultado');
   const inner = document.getElementById('resultado-inner');
   box.style.display = 'block';
   box.scrollIntoView({behavior:'smooth', block:'start'});
+
   if (data.error) {
     inner.innerHTML = `
       <div class="result-card error">
         <div class="result-title">❌ No encontrado</div>
         <p style="color:#7f0000;font-size:.9rem">${data.error}</p>
         <p style="color:#a00;font-size:.82rem;margin-top:.75rem">
-          Si el código proviene de un E-14 publicado en redes, puede indicar que
-          el número fue alterado, es de otra elección, o la imagen es falsa.
+          Verifica que la vuelta seleccionada sea correcta. Si el código proviene de redes, 
+          puede indicar que el número fue alterado o es falso.
         </p>
       </div>`;
     return;
   }
+
   const isOk = data.status === 11;
   const cardClass   = isOk ? 'found' : 'warn';
   const estadoBadge = isOk
     ? '<span class="status-ok">✅ Acta transmitida</span>'
     : '<span class="status-warn">🔎 Revisar manualmente</span>';
+    
   const pdfUrl   = data.url_pdf_directa;
-  const visorUrl = 'https://divulgacione14presidente.registraduria.gov.co';
+  const visorUrl = data.url_visor_oficial; // Viene directamente de la API
+
   inner.innerHTML = `
     <div class="result-card ${cardClass}">
-      <div class="result-title">✅ E-14 verificado</div>
+      <div class="result-title">✅ E-14 verificado (Vuelta ${vuelta})</div>
       <div class="code-big">X ${data.codigo_formateado} X</div>
       <div class="result-grid">
         <div class="result-item">
@@ -381,7 +449,7 @@ function mostrarResultado(data) {
         </button>
         <button class="btn-pdf btn-visor"
           onclick="window.open('${visorUrl}','_blank')">
-          🔗 Visor oficial
+          🔗 Visor oficial Registraduría
         </button>
       </div>
     </div>`;
