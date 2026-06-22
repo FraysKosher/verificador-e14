@@ -149,94 +149,141 @@ HTML = """<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Verificador E-14 — Presidenciales 2026</title>
+<title>Verificador E-14 — Presidenciales Colombia 2026</title>
 <style>
   :root {
-    --bg:#f7f6f2; --surface:#fff; --border:#e0ddd8;
-    --text:#1a1917; --muted:#6b6966; --faint:#a8a6a1;
-    --primary:#01696f; --primary-hover:#0c4e54;
-    --radius:10px; --shadow:0 2px 16px rgba(0,0,0,.08);
+    --bg: #f4f6f8; 
+    --surface: #ffffff; 
+    --border: #dce1e6;
+    --text: #1f2937; 
+    --muted: #6b7280; 
+    --faint: #9ca3af;
+    --primary: #0f766e; 
+    --primary-hover: #115e59;
+    --radius: 12px; 
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-       background:var(--bg);color:var(--text);min-height:100vh;
-       display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
-  header{text-align:center;margin-bottom:2rem}
-  header .logo{font-size:2rem;margin-bottom:.5rem}
-  header h1{font-size:1.5rem;font-weight:700;margin-bottom:.25rem}
-  header p{color:var(--muted);font-size:.9rem}
-  .card{background:var(--surface);border:1px solid var(--border);
-        border-radius:var(--radius);box-shadow:var(--shadow);
-        padding:1.75rem;width:100%;max-width:580px;margin-bottom:1.5rem}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; padding: 2.5rem 1rem;
+  }
+  header { text-align: center; margin-bottom: 2rem; }
+  header .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+  header h1 { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.025em; margin-bottom: 0.3rem; color: #111827; }
+  header p { color: var(--muted); font-size: 0.95rem; }
   
-  /* Estilos para el selector de vuelta */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 2rem; width: 100%; max-width: 600px; margin-bottom: 1.5rem;
+  }
+  
+  /* Selector Unificado Moderno (Segmented Control) */
   .vuelta-selector {
-    display: flex; gap: 1rem; justify-content: center; margin-bottom: 1.5rem; 
-    background: #e8f4f4; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border);
+    display: flex; background: #e5e7eb; border-radius: 8px; padding: 4px; margin-bottom: 1.5rem;
   }
+  .vuelta-selector input { display: none; }
   .vuelta-selector label {
-    cursor: pointer; font-weight: 600; color: var(--primary); margin: 0; display: flex; align-items: center; gap: 0.3rem;
+    flex: 1; text-align: center; padding: 0.6rem; cursor: pointer;
+    font-weight: 600; color: var(--muted); font-size: 0.9rem;
+    border-radius: 6px; transition: all 0.2s ease; margin: 0;
   }
+  .vuelta-selector input:checked + label {
+    background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .tabs { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .tab {
+    flex: 1; padding: 0.7rem 1rem; border: 1px solid var(--border);
+    border-radius: 8px; background: #f9fafb; color: var(--muted);
+    font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .tab.active { border-color: var(--primary); color: var(--primary); background: #f0fdfa; }
+  .tab:hover:not(.active) { background: #f3f4f6; color: var(--text); }
+  .panel { display: none; } .panel.active { display: block; }
   
-  .tabs{display:flex;gap:.5rem;margin-bottom:1.5rem}
-  .tab{flex:1;padding:.6rem 1rem;border:2px solid var(--border);
-       border-radius:8px;background:var(--bg);color:var(--muted);
-       font-size:.875rem;font-weight:500;cursor:pointer;transition:all .15s}
-  .tab.active{border-color:var(--primary);color:var(--primary);background:#e8f4f4}
-  .tab:hover:not(.active){border-color:var(--faint);color:var(--text)}
-  .panel{display:none}.panel.active{display:block}
-  label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);
-        text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem}
-  input[type="text"]{width:100%;padding:.75rem 1rem;border:2px solid var(--border);
-        border-radius:8px;font-size:1rem;color:var(--text);
-        background:var(--bg);transition:border-color .15s;outline:none}
-  input[type="text"]:focus{border-color:var(--primary);background:#fff}
-  input[type="text"]::placeholder{color:var(--faint)}
-  .hint{font-size:.78rem;color:var(--faint);margin-top:.35rem}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
-  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-top:1rem}
-  .field{display:flex;flex-direction:column}
-  .btn-buscar{width:100%;margin-top:1.25rem;padding:.85rem;
-    background:var(--primary);color:white;border:none;border-radius:8px;
-    font-size:1rem;font-weight:600;cursor:pointer;transition:background .15s;
-    display:flex;align-items:center;justify-content:center;gap:.5rem}
-  .btn-buscar:hover{background:var(--primary-hover)}
-  #resultado{display:none}
-  .result-card{border-radius:var(--radius);padding:1.5rem;border:1px solid}
-  .result-card.found{background:#edf7ed;border-color:#4caf50}
-  .result-card.warn{background:#fff8e1;border-color:#ffb300}
-  .result-card.error{background:#fdf0f0;border-color:#e57373}
-  .result-title{font-size:1rem;font-weight:700;margin-bottom:1rem;
-                display:flex;align-items:center;gap:.5rem}
-  .found .result-title{color:#1b5e20}
-  .warn  .result-title{color:#5d4000}
-  .error .result-title{color:#7f0000}
-  .result-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem 1.5rem}
-  .result-item{display:flex;flex-direction:column}
-  .result-label{font-size:.72rem;font-weight:600;text-transform:uppercase;
-                letter-spacing:.05em;color:var(--muted)}
-  .result-value{font-size:1rem;font-weight:600;color:var(--text);margin-top:.1rem}
-  .code-big{font-size:1.4rem;font-weight:800;color:var(--primary);
-            letter-spacing:.05em;margin-bottom:1rem}
-  .status-ok{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .7rem;
-             border-radius:99px;font-size:.8rem;font-weight:600;
-             background:#d4edda;color:#155724}
-  .status-warn{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .7rem;
-               border-radius:99px;font-size:.8rem;font-weight:600;
-               background:#fff3cd;color:#856404}
-  hr.div{border:none;border-top:1px solid var(--border);margin:1rem 0}
-  .btns{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.25rem}
-  .btn-pdf{padding:.55rem 1.1rem;border:none;border-radius:6px;
-           font-size:.875rem;font-weight:600;cursor:pointer;
-           display:inline-flex;align-items:center;gap:.4rem;transition:opacity .15s}
-  .btn-pdf:hover{opacity:.85}
-  .btn-dl{background:#01696f;color:white}
-  .btn-visor{background:#555;color:white}
-  footer{color:var(--faint);font-size:.78rem;text-align:center;
-         margin-top:1rem;max-width:500px;line-height:1.6}
-  footer a{color:var(--primary)}
-  .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.4);
-           border-top-color:white;border-radius:50%;animation:spin .6s linear infinite}
+  label.input-label {
+    display: block; font-size: 0.75rem; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;
+  }
+  input[type="text"] {
+    width: 100%; padding: 0.8rem 1rem; border: 1px solid #d1d5db;
+    border-radius: 8px; font-size: 1rem; color: var(--text);
+    background: #fff; transition: all 0.2s; outline: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+  }
+  input[type="text"]:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1); }
+  input[type="text"]::placeholder { color: var(--faint); }
+  
+  .hint { font-size: 0.8rem; color: var(--faint); margin-top: 0.4rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .field { display: flex; flex-direction: column; }
+  
+  .btn-buscar {
+    width: 100%; margin-top: 1.5rem; padding: 0.85rem;
+    background: var(--primary); color: white; border: none; border-radius: 8px;
+    font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
+  }
+  .btn-buscar:hover { background: var(--primary-hover); transform: translateY(-1px); }
+  .btn-buscar:active { transform: translateY(0); }
+  
+  #resultado { display: none; }
+  
+  /* Tarjetas de resultados estilo profesional (Border acento) */
+  .result-card { border-radius: var(--radius); padding: 1.5rem; border: 1px solid var(--border); background: #fff; }
+  .result-card.found { border-left: 5px solid #10b981; }
+  .result-card.warn { border-left: 5px solid #f59e0b; }
+  .result-card.error { border-left: 5px solid #ef4444; }
+  
+  .result-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.5rem; }
+  .found .result-title { color: #065f46; }
+  .warn .result-title { color: #92400e; }
+  .error .result-title { color: #991b1b; }
+  
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.5rem; }
+  .result-item { display: flex; flex-direction: column; }
+  .result-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .result-value { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-top: 0.15rem; }
+  
+  .code-big { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 0.05em; margin-bottom: 1.2rem; }
+  
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.25rem 0.75rem;
+    border-radius: 99px; font-size: 0.8rem; font-weight: 700; margin-top: 0.15rem; width: fit-content;
+  }
+  .status-ok { background: #d1fae5; color: #065f46; }
+  .status-warn { background: #fef3c7; color: #92400e; }
+  
+  hr.div { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+  
+  .btns { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btn-pdf {
+    padding: 0.65rem 1.2rem; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 0.4rem; transition: all 0.2s;
+  }
+  .btn-dl { background: var(--primary); color: white; box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2); }
+  .btn-dl:hover { background: var(--primary-hover); }
+  .btn-visor { background: #e5e7eb; color: #374151; }
+  .btn-visor:hover { background: #d1d5db; }
+  
+  .alert-box {
+    background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e;
+    padding: 1rem; border-radius: 0 8px 8px 0; font-size: 0.85rem; margin-bottom: 1.5rem; line-height: 1.5;
+  }
+
+  .footer-status {
+    background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1.2rem; 
+    border: 1px solid var(--border); color: var(--text); text-align: center; line-height: 1.5;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+  footer { color: var(--faint); font-size: 0.85rem; text-align: center; margin-top: 1rem; max-width: 500px; line-height: 1.6; }
+  
+  .spinner{display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .loading .spinner{display:inline-block}
   .loading .btn-text{display:none}
@@ -250,14 +297,13 @@ HTML = """<!DOCTYPE html>
 </header>
 
 <div class="card">
-  <!-- Selector Unificado de Vueltas -->
+  <!-- Selector Unificado Moderno -->
   <div class="vuelta-selector">
-    <label>
-      <input type="radio" name="vuelta" value="1" onchange="limpiarResultado()"> Primera Vuelta
-    </label>
-    <label>
-      <input type="radio" name="vuelta" value="2" checked onchange="limpiarResultado()"> Segunda Vuelta
-    </label>
+    <input type="radio" id="v1" name="vuelta" value="1" onchange="limpiarResultado()">
+    <label for="v1">Primera Vuelta</label>
+    
+    <input type="radio" id="v2" name="vuelta" value="2" checked onchange="limpiarResultado()">
+    <label for="v2">Segunda Vuelta</label>
   </div>
 
   <div class="tabs">
@@ -267,9 +313,8 @@ HTML = """<!DOCTYPE html>
 
   <div id="panel-codigo" class="panel active">
     <form onsubmit="buscarCodigo(event)">
-      <label>Código de transmisión</label>
-      <input id="inp-codigo" type="text" placeholder="Ej: 6-45-25-18 o 6452518"
-             autocomplete="off" spellcheck="false"/>
+      <label class="input-label">Código de transmisión</label>
+      <input id="inp-codigo" type="text" placeholder="Ej: 6-45-25-18 o 6452518" autocomplete="off" spellcheck="false"/>
       <p class="hint">Es el número impreso en el formulario como X 6-45-25-18 X</p>
       <button type="submit" class="btn-buscar">
         <div class="spinner"></div>
@@ -281,18 +326,18 @@ HTML = """<!DOCTYPE html>
   <div id="panel-lugar" class="panel">
     <form onsubmit="buscarLugar(event)">
       <div class="grid2">
-        <div class="field"><label>Departamento</label>
-          <input id="l-dep" placeholder="Ej: 16" maxlength="4"/></div>
-        <div class="field"><label>Municipio</label>
-          <input id="l-mpio" placeholder="Ej: 001" maxlength="4"/></div>
+        <div class="field"><label class="input-label">Departamento</label>
+          <input id="l-dep" type="text" placeholder="Ej: 16" maxlength="4"/></div>
+        <div class="field"><label class="input-label">Municipio</label>
+          <input id="l-mpio" type="text" placeholder="Ej: 001" maxlength="4"/></div>
       </div>
       <div class="grid3">
-        <div class="field"><label>Zona</label>
-          <input id="l-zona" placeholder="Ej: 20" maxlength="4"/></div>
-        <div class="field"><label>Puesto</label>
-          <input id="l-puesto" placeholder="Ej: 03" maxlength="4"/></div>
-        <div class="field"><label>Mesa</label>
-          <input id="l-mesa" placeholder="Ej: 001" maxlength="4"/></div>
+        <div class="field"><label class="input-label">Zona</label>
+          <input id="l-zona" type="text" placeholder="Ej: 20" maxlength="4"/></div>
+        <div class="field"><label class="input-label">Puesto</label>
+          <input id="l-puesto" type="text" placeholder="Ej: 03" maxlength="4"/></div>
+        <div class="field"><label class="input-label">Mesa</label>
+          <input id="l-mesa" type="text" placeholder="Ej: 001" maxlength="4"/></div>
       </div>
       <p class="hint" style="margin-top:.75rem">Datos tal como aparecen en el encabezado del E-14</p>
       <button type="submit" class="btn-buscar">
@@ -308,11 +353,11 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <footer>
-  <div style="background: #e8f4f4; padding: 0.85rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid var(--border); color: var(--primary); text-align: center; line-height: 1.4;">
-    <strong>📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
-    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text);">
+  <div class="footer-status">
+    <strong style="color: var(--primary);">📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
+    <div style="margin-top: 0.5rem;">
       Primera Vuelta: <b>122.016</b> actas procesadas<br>
-      Segunda Vuelta: <b>121.851</b> actas procesadas
+      Segunda Vuelta: <b>121.815</b> actas procesadas
     </div>
   </div>
   Fuente: Registraduría Nacional del Estado Civil.<br>
@@ -338,7 +383,6 @@ function setLoading(btn, on) {
   btn.disabled = on;
 }
 
-// Helper para obtener qué vuelta seleccionó el usuario
 function getVueltaSeleccionada() {
   return document.querySelector('input[name="vuelta"]:checked').value;
 }
@@ -389,8 +433,8 @@ function mostrarResultado(data, vuelta) {
     inner.innerHTML = `
       <div class="result-card error">
         <div class="result-title">❌ No encontrado</div>
-        <p style="color:#7f0000;font-size:.9rem">${data.error}</p>
-        <p style="color:#a00;font-size:.82rem;margin-top:.75rem">
+        <p style="color:#991b1b;font-size:.95rem;font-weight:500;">${data.error}</p>
+        <p style="color:#b91c1c;font-size:.85rem;margin-top:.75rem;line-height:1.4;">
           Verifica que la vuelta seleccionada sea correcta. Si el código proviene de redes, 
           puede indicar que el número fue alterado o es falso.
         </p>
@@ -401,21 +445,22 @@ function mostrarResultado(data, vuelta) {
   const isOk = data.status === 11;
   const cardClass   = isOk ? 'found' : 'warn';
   const estadoBadge = isOk
-    ? '<span class="status-ok">✅ Acta transmitida</span>'
-    : '<span class="status-warn">🔎 Revisar manualmente</span>';
+    ? '<span class="status-badge status-ok">✅ Acta transmitida</span>'
+    : '<span class="status-badge status-warn">🔎 Revisar manualmente</span>';
     
- const pdfUrl   = data.url_pdf_directa;
-  const visorUrl = data.url_visor_oficial; 
+  const pdfUrl   = data.url_pdf_directa;
+  const visorUrl = data.url_visor_oficial;
 
   inner.innerHTML = `
     <div class="result-card ${cardClass}">
       <div class="result-title">✅ E-14 verificado (Vuelta ${vuelta})</div>
       <div class="code-big">X ${data.codigo_formateado} X</div>
+      
       <div class="result-grid">
         <div class="result-item">
           <span class="result-label">Departamento</span>
           <span class="result-value">${data.depto_nombre}</span>
-          <span style="font-size:.75rem;color:var(--muted)">código ${data.idDepartmentCode}</span>
+          <span style="font-size:.75rem;color:var(--faint)">código ${data.idDepartmentCode}</span>
         </div>
         <div class="result-item">
           <span class="result-label">Municipio</span>
@@ -438,19 +483,22 @@ function mostrarResultado(data, vuelta) {
           ${estadoBadge}
         </div>
       </div>
+      
       <hr class="div">
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">
+      
+      <div class="alert-box">
+        💡 <b>Nota técnica:</b> El servidor oficial suele enviar la foto rápida del E-14 a los celulares, y el escaneo definitivo a los computadores. Para ver la versión escaneada de alta resolución, te recomendamos <b>ingresar desde un PC</b>.
+      </div>
+
+      <p style="font-size:.85rem;color:var(--text);font-weight:600;margin-bottom:.75rem">
         Consulta el acta oficial de esta mesa:
       </p>
       
-      <!-- SECCIÓN DE BOTONES CORREGIDA (URL DIRECTA) -->
       <div class="btns">
-        <button class="btn-pdf btn-dl"
-          onclick="window.open('${pdfUrl}','_blank')">
+        <button class="btn-pdf btn-dl" onclick="window.open('${pdfUrl}','_blank')">
           👁️ Ver / Descargar E-14 Oficial
         </button>
-        <button class="btn-pdf btn-visor"
-          onclick="window.open('${visorUrl}','_blank')">
+        <button class="btn-pdf btn-visor" onclick="window.open('${visorUrl}','_blank')">
           🔗 Visor Registraduría
         </button>
       </div>
