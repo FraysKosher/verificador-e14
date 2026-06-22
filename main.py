@@ -268,9 +268,9 @@ HTML = """<!DOCTYPE html>
   <div id="panel-codigo" class="panel active">
     <form onsubmit="buscarCodigo(event)">
       <label>Código de transmisión</label>
-      <input id="inp-codigo" type="text" placeholder="Ej: 5-57-43-15 o 5574315"
+      <input id="inp-codigo" type="text" placeholder="Ej: 6-45-25-18 o 6452518"
              autocomplete="off" spellcheck="false"/>
-      <p class="hint">Es el número impreso en el formulario como X 5-57-43-15 X</p>
+      <p class="hint">Es el número impreso en el formulario como X 6-45-25-18 X</p>
       <button type="submit" class="btn-buscar">
         <div class="spinner"></div>
         <span class="btn-text">🔍 Buscar Acta</span>
@@ -288,9 +288,9 @@ HTML = """<!DOCTYPE html>
       </div>
       <div class="grid3">
         <div class="field"><label>Zona</label>
-          <input id="l-zona" placeholder="Ej: 12" maxlength="4"/></div>
+          <input id="l-zona" placeholder="Ej: 20" maxlength="4"/></div>
         <div class="field"><label>Puesto</label>
-          <input id="l-puesto" placeholder="Ej: 17" maxlength="4"/></div>
+          <input id="l-puesto" placeholder="Ej: 03" maxlength="4"/></div>
         <div class="field"><label>Mesa</label>
           <input id="l-mesa" placeholder="Ej: 001" maxlength="4"/></div>
       </div>
@@ -312,7 +312,7 @@ HTML = """<!DOCTYPE html>
     <strong>📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
     <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text);">
       Primera Vuelta: <b>122.016</b> actas procesadas<br>
-      Segunda Vuelta: <b>121.630</b> actas procesadas
+      Segunda Vuelta: <b>121.851</b> actas procesadas
     </div>
   </div>
   Fuente: Registraduría Nacional del Estado Civil.<br>
@@ -404,8 +404,8 @@ function mostrarResultado(data, vuelta) {
     ? '<span class="status-ok">✅ Acta transmitida</span>'
     : '<span class="status-warn">🔎 Revisar manualmente</span>';
     
-  const pdfUrl   = data.url_pdf_directa;
-  const visorUrl = data.url_visor_oficial; // Viene directamente de la API
+ const pdfUrl   = data.url_pdf_directa;
+  const visorUrl = data.url_visor_oficial; 
 
   inner.innerHTML = `
     <div class="result-card ${cardClass}">
@@ -440,16 +440,18 @@ function mostrarResultado(data, vuelta) {
       </div>
       <hr class="div">
       <p style="font-size:.82rem;color:var(--muted);margin-bottom:.75rem">
-        Descarga o consulta el PDF oficial de esta mesa:
+        Consulta el acta oficial de esta mesa:
       </p>
+      
+      <!-- SECCIÓN DE BOTONES CORREGIDA (URL DIRECTA) -->
       <div class="btns">
         <button class="btn-pdf btn-dl"
           onclick="window.open('${pdfUrl}','_blank')">
-          ⬇️ Descargar E-14 (PDF oficial)
+          👁️ Ver / Descargar E-14 Oficial
         </button>
         <button class="btn-pdf btn-visor"
           onclick="window.open('${visorUrl}','_blank')">
-          🔗 Visor oficial Registraduría
+          🔗 Visor Registraduría
         </button>
       </div>
     </div>`;
