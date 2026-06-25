@@ -357,7 +357,7 @@ HTML = """<!DOCTYPE html>
     <strong style="color: var(--primary);">📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
     <div style="margin-top: 0.5rem;">
       Primera Vuelta: <b>122.016</b> actas procesadas<br>
-      Segunda Vuelta: <b>121.815</b> actas procesadas
+      Segunda Vuelta: <b>122.019</b> actas procesadas
     </div>
   </div>
   Fuente: Registraduría Nacional del Estado Civil.<br>

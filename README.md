@@ -10,7 +10,7 @@ Permite buscar cualquier formulario oficial por su código de transmisión (el n
 |---|---|
 | `main.py` | Servidor FastAPI con la interfaz frontend y selector unificado de vueltas. |
 | `e14_index.db` | Base de datos SQLite - Primera Vuelta (122,016 actas). |
-| `e14_index_2Vuelta.db` | Base de datos SQLite - Segunda Vuelta (121,630 actas). |
+| `e14_index_2Vuelta.db` | Base de datos SQLite - Segunda Vuelta (122,019 actas). |
 | `e14_indexar*.py` | Scripts locales de Python para procesar los JSON y construir las bases de datos. |
 | `requirements.txt` | Dependencias de Python (`fastapi`, `uvicorn`, etc.). |
 | `Procfile` / `nixpacks.toml` | Archivos de configuración para el despliegue automático en Railway. |
