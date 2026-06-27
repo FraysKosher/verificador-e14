@@ -1,7 +1,7 @@
 # Verificador E-14 — Presidenciales Colombia 2026 (1ra y 2da Vuelta)
 
 Herramienta de verificación ciudadana independiente de actas E-14.
-Permite buscar cualquier formulario oficial por su código de transmisión (ej. `X 5-57-43-15 X`) o por ubicación geográfica. Esta versión unificada integra los datos tanto de la primera como de la segunda vuelta electoral en una sola interfaz, cruzando los datos de preconteo (Delegados) con los escrutinios finales (Claveros).
+Permite buscar cualquier formulario oficial por su código de transmisión (ej. `X 6-45-25-18 X`) o por ubicación geográfica. Esta versión unificada integra los datos tanto de la primera como de la segunda vuelta electoral en una sola interfaz, cruzando los datos de preconteo (Delegados) con los escrutinios finales (Claveros).
 
 ## Arquitectura del Proyecto
 

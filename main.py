@@ -369,11 +369,14 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <footer>
-  <div class="footer-status">
+<div class="footer-status">
     <strong style="color: var(--primary);">📊 Estado de indexación (Total nacional: 122.020 mesas)</strong><br>
     <div style="margin-top: 0.5rem;">
-      Primera Vuelta: <b>122.016</b> actas procesadas<br>
-      Segunda Vuelta: <b>122.019</b> actas procesadas
+      Primera Vuelta: <b>122.016</b> mesas base (<b>96.9%</b> con E-14 de Escrutinio)<br>
+      Segunda Vuelta: <b>122.019</b> mesas base (<b>96.9%</b> con E-14 de Escrutinio)
+    </div>
+    <div style="font-size: 0.75rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.4;">
+      <i>*El ~3% restante corresponde a los Consulados. Aunque la Registraduría no publica su escrutinio individual en el portal nacional, su formulario oficial equivalente (Cónsul/Embajador) está 100% disponible para consulta en esta plataforma.</i>
     </div>
   </div>
   Fuente: Registraduría Nacional del Estado Civil.<br>
