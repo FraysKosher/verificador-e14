@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 main.py — Verificador E-14 Presidenciales 2026 (Unificado 1ra y 2da Vuelta)
-Servidor FastAPI + Uvicorn, listo para Railway
+Servidor FastAPI + Uvicorn, listo para Producción
 """
 
 import sqlite3
@@ -23,11 +23,11 @@ app.add_middleware(
 # --- CONFIGURACIÓN DE VUELTAS ---
 VUELTAS = {
     1: {
-        "db": os.environ.get("DB_PATH_V1", "e14_index.db"),
+        "db": os.environ.get("DB_PATH_V1", "bases_de_datos/presidente2026_v1.db"),
         "url": "https://divulgacione14presidente.registraduria.gov.co"
     },
     2: {
-        "db": os.environ.get("DB_PATH_V2", "e14_index_2Vuelta.db"),
+        "db": os.environ.get("DB_PATH_V2", "bases_de_datos/presidente2026_v2.db"),
         "url": "https://e14segundavueltapresidente.registraduria.gov.co"
     }
 }
@@ -52,10 +52,6 @@ DEPARTAMENTOS = {
     "72": "Vichada",         "88": "Consulados",
 }
 
-COLS = ["idTransmissionCode","numberStand","expectedName","status",
-        "status_label","idCorporationCode","idStand","standCode",
-        "idZoneCode","idDepartmentCode","municipalityCode","departamento","url_pdf"]
-
 # Conexión dinámica dependiendo de la vuelta
 def get_conn(vuelta: int):
     if vuelta not in VUELTAS:
@@ -73,7 +69,7 @@ def formatear_codigo(codigo: str) -> str:
     c = str(codigo).zfill(7)
     return f"{c[0]}-{c[1:3]}-{c[3:5]}-{c[5:7]}"
 
-def construir_url_pdf(r: dict, vuelta: int) -> str:
+def construir_url_pdf_delegados(r: dict, vuelta: int) -> str:
     base = f"{VUELTAS[vuelta]['url']}/assets/temis/pdf"
     depto  = r["idDepartmentCode"].zfill(2)
     mpio   = r["municipalityCode"].zfill(3)
@@ -82,12 +78,33 @@ def construir_url_pdf(r: dict, vuelta: int) -> str:
     mesa   = r["numberStand"].zfill(3)
     return f"{base}/{depto}/{mpio}/{zona}/{puesto}/{mesa}/PRE/{r['expectedName']}"
 
+def construir_url_visor_claveros(r: dict, vuelta: int) -> str:
+    # Para la primera y segunda vuelta de escrutinios, la Registraduría unifica el visor 
+    # bajo el dominio de escrutiniospresidente2026
+    depto  = r["idDepartmentCode"].zfill(2)
+    mpio   = r["municipalityCode"].zfill(3)
+    zona   = r["idZoneCode"].zfill(2) # Ajuste de ceros dinámicos
+    puesto = r["standCode"].zfill(2)
+    
+    # Redirección nativa al visor de actas de escrutinio oficial
+    return f"https://escrutiniospresidente2026.registraduria.gov.co/puesto/{depto}/{mpio}/{zona}/{puesto}"
+
 def enriquecer(row, vuelta: int) -> dict:
     r = dict(row)
     r["depto_nombre"]      = DEPARTAMENTOS.get(r["idDepartmentCode"], f"Código {r['idDepartmentCode']}")
     r["codigo_formateado"] = formatear_codigo(r["idTransmissionCode"])
-    r["url_pdf_directa"]   = construir_url_pdf(r, vuelta)
-    r["url_visor_oficial"] = VUELTAS[vuelta]['url']
+    r["url_pdf_delegados"] = construir_url_pdf_delegados(r, vuelta)
+    
+    # Integración del indexador de Claveros
+    url_db = r.get("url_claveros")
+    
+    if url_db:
+        # Si la URL fue extraída con éxito, usa el enlace directo al PDF
+        r["url_pdf_claveros"] = url_db
+    else:
+        # Fallback al visor general
+        r["url_pdf_claveros"] = construir_url_visor_claveros(r, vuelta)
+        
     return r
 
 # ── Rutas API ─────────────────────────────────────────────────────────────────
@@ -268,8 +285,8 @@ HTML = """<!DOCTYPE html>
   }
   .btn-dl { background: var(--primary); color: white; box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2); }
   .btn-dl:hover { background: var(--primary-hover); }
-  .btn-visor { background: #e5e7eb; color: #374151; }
-  .btn-visor:hover { background: #d1d5db; }
+  .btn-visor { background: #1e3a8a; color: white; box-shadow: 0 2px 4px rgba(30, 58, 138, 0.2); }
+  .btn-visor:hover { background: #172554; }
   
   .alert-box {
     background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e;
@@ -297,7 +314,6 @@ HTML = """<!DOCTYPE html>
 </header>
 
 <div class="card">
-  <!-- Selector Unificado Moderno -->
   <div class="vuelta-selector">
     <input type="radio" id="v1" name="vuelta" value="1" onchange="limpiarResultado()">
     <label for="v1">Primera Vuelta</label>
@@ -448,8 +464,12 @@ function mostrarResultado(data, vuelta) {
     ? '<span class="status-badge status-ok">✅ Acta transmitida</span>'
     : '<span class="status-badge status-warn">🔎 Revisar manualmente</span>';
     
-  const pdfUrl   = data.url_pdf_directa;
-  const visorUrl = data.url_visor_oficial;
+  const urlDelegados = data.url_pdf_delegados;
+  const urlClaveros   = data.url_pdf_claveros;
+
+  // Lógica de Consulados (Departamento 88)
+  const isConsulado = data.idDepartmentCode === '88';
+  const btnDelegadosText = isConsulado ? '🗳️ Ver E-14 Cónsul/Embajador' : '🗳️ Ver E-14 Delegados (Preconteo)';
 
   inner.innerHTML = `
     <div class="result-card ${cardClass}">
@@ -486,27 +506,38 @@ function mostrarResultado(data, vuelta) {
       
       <hr class="div">
       
+      ${!isConsulado ? `
       <div class="alert-box">
-        💡 <b>Nota técnica:</b> El servidor oficial suele enviar la foto rápida del E-14 a los celulares, y el escaneo definitivo a los computadores. Para ver la versión escaneada de alta resolución, te recomendamos <b>ingresar desde un PC</b>.
+        💡 <b>Nota de auditoría:</b> Las actas de <b>Delegados</b> corresponden a la transmisión del preconteo inicial. Las actas de <b>Claveros</b> son los documentos oficiales usados en los escrutinios finales definitivos.
       </div>
+      ` : ''}
+
+      ${isConsulado ? `
+      <div class="alert-box" style="background-color: #fef3c7; border-color: #f59e0b; color: #92400e; margin-top: -0.5rem; margin-bottom: 1.5rem;">
+        🌍 <b>Nota sobre Consulados:</b> El escrutinio de las mesas en el exterior es realizado por una comisión especial del CNE en Bogotá. La Registraduría no publica los E-14 individuales de claveros del exterior en el portal territorial, por lo que el formulario de Cónsul/Embajador actúa como referencia.
+      </div>
+      ` : ''}
 
       <p style="font-size:.85rem;color:var(--text);font-weight:600;margin-bottom:.75rem">
-        Consulta el acta oficial de esta mesa:
+        Comparar formularios oficiales de esta mesa:
       </p>
       
       <div class="btns">
-        <button class="btn-pdf btn-dl" onclick="window.open('${pdfUrl}','_blank')">
-          👁️ Ver / Descargar E-14 Oficial
+        <button class="btn-pdf btn-dl" onclick="window.open('${urlDelegados}','_blank')">
+          ${btnDelegadosText}
         </button>
-        <button class="btn-pdf btn-visor" onclick="window.open('${visorUrl}','_blank')">
-          🔗 Visor Registraduría
+        ${!isConsulado ? `
+        <button class="btn-pdf btn-visor" onclick="window.open('${urlClaveros}','_blank')">
+          ⚖️ Descargar E-14 Claveros (Escrutinio)
         </button>
+        ` : ''}
       </div>
     </div>`;
 }
 </script>
 </body>
-</html>"""
+</html>
+"""
 
 @app.get("/", response_class=HTMLResponse)
 def index():
